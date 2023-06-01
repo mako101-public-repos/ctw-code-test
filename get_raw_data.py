@@ -1,8 +1,8 @@
 import os
 import requests
+from datetime import datetime
 from sqlalchemy import Integer, Column, Date, Float, String, create_engine
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import declarative_base, sessionmaker
 
 from dotenv import load_dotenv
 
@@ -23,7 +23,7 @@ response = requests.get(url)
 data = response.json()['Time Series (Daily)']
 
 # Define the database path
-database_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'stocks.db')
+database_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'financial_data.db')
 
 # Define the SQLAlchemy engine and session
 engine = create_engine(f'sqlite:///{database_path}', echo=True)
@@ -33,37 +33,33 @@ session = Session()
 # Define the ORM base
 Base = declarative_base()
 
+
+# symbol, date, open_price, close_price, volume
 # Define the Stock model
 class Stock(Base):
-    __tablename__ = 'stocks'
+    __tablename__ = 'financial_data'
     id = Column(Integer, primary_key=True)
     symbol = Column(String(10))
     date = Column(Date)
     open_price = Column(Float)
-    high_price = Column(Float)
-    low_price = Column(Float)
     close_price = Column(Float)
     volume = Column(Float)
 
     def __repr__(self):
-        return f"<Stock(symbol='{self.symbol}', date='{self.date}', " \
-               f"close_price={self.close_price})>"
+        return f"<Stock(symbol='{self.symbol}', date='{self.date}', close_price='{self.close_price})'>"
 
 
-
-# Create the 'stocks' table if it doesn't exist
+# Create the 'financial_data' table if it doesn't exist
 Base.metadata.create_all(engine)
 
 # Store the retrieved data in the database
-for date, values in data.items():
+for date_string, values in data.items():
     stock = Stock(
         symbol=symbol,
-        date=date,
+        date=datetime.strptime(date_string, "%Y-%m-%d"),
         open_price=float(values['1. open']),
-        high_price=float(values['2. high']),
-        low_price=float(values['3. low']),
         close_price=float(values['4. close']),
-        volume=float(values['5. volume'])
+        volume=float(values['6. volume'])
     )
     session.add(stock)
 
