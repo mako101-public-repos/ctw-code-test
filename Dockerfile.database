@@ -1,0 +1,26 @@
+FROM python:3.9-alpine
+
+# Install SQLite
+RUN apk add --no-cache sqlite
+
+ARG PIP_ROOT_USER_ACTION=ignore
+
+# Read API Key from environment (will be passed by docker-compose)
+ARG API_KEY=${API_KEY}
+
+RUN pip install --upgrade pip
+COPY requirements-db.txt requirements.txt
+RUN pip install -r requirements.txt
+
+# Copy the Python script to generate data
+COPY get_raw_data.py .
+COPY model.py .
+
+# get the latest data and create the DB
+RUN python3 get_raw_data.py
+
+# Expose the SQLite port
+EXPOSE 3306
+
+# Set the entrypoint command
+CMD ["sqlite3", "financial_data.db"]

@@ -1,0 +1,14 @@
+version: "3"
+services:
+  database:
+    build:
+      context: .
+      dockerfile: Dockerfile.database
+      args:
+        - API_KEY=<YOUR_API_KEY>
+
+#  service2:
+#    build:
+#      context: ./path/to/service2
+#      dockerfile: Dockerfile2
+#    # additional configuration for service2
