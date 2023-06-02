@@ -1,26 +1,26 @@
 import os
+import sys
 import requests
+import logging
 from datetime import datetime
-from sqlalchemy import Integer, Column, Date, Float, String, create_engine
-from sqlalchemy.orm import declarative_base, sessionmaker
-
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+from model import Base, Stock
 from dotenv import load_dotenv
 
 load_dotenv()
 
-# Define the AlphaVantage API parameters
+logging.basicConfig(level=logging.DEBUG,
+                    format="%(asctime)s %(levelname)s - %(name)s: %(message)s",
+                    stream=sys.stdout
+                    )
+
+# Load AlphaVantage API key
 try:
     api_key = os.environ['API_KEY']
 except KeyError:
     raise EnvironmentError('Please set `API_KEY` environmental variable')
 
-symbol = 'AAPL'
-outputsize = 'compact'
-
-# Retrieve daily stock data from AlphaVantage
-url = f'https://www.alphavantage.co/query?function=TIME_SERIES_DAILY_ADJUSTED&symbol={symbol}&outputsize={outputsize}&apikey={api_key}'
-response = requests.get(url)
-data = response.json()['Time Series (Daily)']
 
 # Define the database path
 database_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'financial_data.db')
@@ -30,38 +30,44 @@ engine = create_engine(f'sqlite:///{database_path}', echo=True)
 Session = sessionmaker(bind=engine)
 session = Session()
 
-# Define the ORM base
-Base = declarative_base()
-
-
-# symbol, date, open_price, close_price, volume
-# Define the Stock model
-class Stock(Base):
-    __tablename__ = 'financial_data'
-    id = Column(Integer, primary_key=True)
-    symbol = Column(String(10))
-    date = Column(Date)
-    open_price = Column(Float)
-    close_price = Column(Float)
-    volume = Column(Float)
-
-    def __repr__(self):
-        return f"<Stock(symbol='{self.symbol}', date='{self.date}', close_price='{self.close_price})'>"
-
-
 # Create the 'financial_data' table if it doesn't exist
 Base.metadata.create_all(engine)
 
-# Store the retrieved data in the database
-for date_string, values in data.items():
-    stock = Stock(
-        symbol=symbol,
-        date=datetime.strptime(date_string, "%Y-%m-%d"),
-        open_price=float(values['1. open']),
-        close_price=float(values['4. close']),
-        volume=float(values['6. volume'])
-    )
-    session.add(stock)
+symbols = ['AAPL', 'IBM']
+outputsize = 'compact'
+date_format = "%Y-%m-%d"
+
+for symbol in symbols:
+    # Retrieve daily stock data from AlphaVantage
+    url = f'https://www.alphavantage.co/query?function=TIME_SERIES_DAILY_ADJUSTED&symbol={symbol}&outputsize={outputsize}&apikey={api_key}'
+
+    try:
+        response = requests.get(url)
+        data = response.json()['Time Series (Daily)']
+    except:
+        logging.exception(f'Failed to retrieve data from API: {response.text}')
+        sys.exit(1)
+
+    # Store the retrieved data in the database
+    # Check for existing records before saving
+    for date_string, values in data.items():
+        try:
+            date_object = datetime.strptime(date_string, date_format).date()
+            existing_record = session.query(Stock).filter_by(symbol=symbol, date=date_object).first()
+            if existing_record:
+                logging.debug(f'Found exiting record for {symbol} on {date_string}, skipping')
+
+            else:
+                stock = Stock(
+                    symbol=symbol,
+                    date=datetime.strptime(date_string, date_format).date(),
+                    open_price=float(values['1. open']),
+                    close_price=float(values['4. close']),
+                    volume=float(values['6. volume'])
+                )
+                session.add(stock)
+        except:
+            logging.exception(f'ERROR: failed to process {values}')
 
 session.commit()
 session.close()
