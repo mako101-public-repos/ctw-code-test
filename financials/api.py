@@ -32,8 +32,9 @@ session = Session()
 @router.get("/financial_data")
 def get_stock_records(symbol: str, start_date: str, end_date: str,  limit: int = 5, page: int = 1):
     try:
+        symbol = validate_symbol(symbol)
         query = session.query(Stock).filter(
-            Stock.symbol == validate_symbol(symbol),
+            Stock.symbol == symbol,
             Stock.date >= validate_date(start_date),
             Stock.date <= validate_date(end_date)
         ).order_by(Stock.date.asc())
@@ -70,22 +71,42 @@ def get_stock_records(symbol: str, start_date: str, end_date: str,  limit: int =
 
 # Route to perform basic statistical analysis on the stock records
 @router.get("/statistics/")
-def get_stock_records_statistics(start_date: str, end_date: str):
-    query = session.query(
-        func.min(Stock.close_price).label('min_price'),
-        func.max(Stock.close_price).label('max_price'),
-        func.avg(Stock.close_price).label('avg_price')
-    ).filter(
-        Stock.date >= start_date,
-        Stock.date <= end_date
-    )
+def get_stock_records_statistics(symbol: str, start_date: str, end_date: str):
+    try:
+        symbol = validate_symbol(symbol)
+        query = session.query(
+            func.avg(Stock.open_price).label('average_daily_open_price'),
+            func.avg(Stock.close_price).label('average_daily_close_price'),
+            func.avg(Stock.volume).label('average_daily_volume'),
+        ).filter(
+            Stock.symbol == symbol,
+            Stock.date >= start_date,
+            Stock.date <= end_date
+        )
 
-    result = query.first()
-    return {
-        "min_price": result.min_price,
-        "max_price": result.max_price,
-        "avg_price": result.avg_price
-    }
+        result = query.first()
+        if result == (None, None, None):
+            return {
+                "data": [],
+                "info": {'error': f'No records found for symbol {symbol}'}
+            }
+
+        return {
+            "data": {
+                "start_date": start_date,
+                "end_date": end_date,
+                "symbol": symbol,
+                "average_daily_open_price": float(f'{result.average_daily_open_price:.2f}'),
+                "average_daily_close_price": float(f'{result.average_daily_close_price:.2f}'),
+                "average_daily_volume": int(result.average_daily_volume)
+            },
+            "info": {'error': ''}
+        }
+    except Exception as e:
+        return {
+            "data": [],
+            "info": {'error': str(e)}
+        }
 
 
 app.include_router(router)
