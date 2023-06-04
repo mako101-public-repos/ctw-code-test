@@ -1,9 +1,11 @@
+import os
 import sys
+import pymysql
 from importlib import util
 from sqlalchemy import create_engine, func
 from sqlalchemy.orm import sessionmaker
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, Query
 from fastapi_utils.inferring_router import InferringRouter
 from fastapi.openapi.utils import get_openapi
 from fastapi.openapi.docs import get_swagger_ui_html
@@ -21,16 +23,34 @@ app = FastAPI()
 router = InferringRouter(prefix='/api')
 
 
-# Create SQLite database (assuming you've already created it)
-engine = create_engine('sqlite:///../financial_data.db')
-Base.metadata.bind = engine
+# try:
+#     mysql_db = os.environ['MYSQL_DB']
+# except KeyError:
+#     raise EnvironmentError('Please set `MYSQL_DB` environmental variable')
+mysql_db = 'mysql://root:root_password@mysql:3306/mydb'
+
+pymysql.install_as_MySQLdb()
+
+# Define the SQLAlchemy engine and session
+engine = create_engine(mysql_db)
 Session = sessionmaker(bind=engine)
 session = Session()
+# # Create SQLite database (assuming you've already created it)
+# engine = create_engine('sqlite:///data/financial_data.db')
+# Base.metadata.bind = engine
+# Session = sessionmaker(bind=engine)
+# session = Session()
 
 
 # Route to retrieve stock records with customizable dates, limits, and pagination
 @router.get("/financial_data")
-def get_stock_records(symbol: str, start_date: str, end_date: str,  limit: int = 5, page: int = 1):
+def get_stock_records(
+        symbol: str = Query(default='AAPL', description="Stock symbol acronym, eg `AAPL` or `IBM`"),
+        start_date: str = Query(default='2023-05-01', description="Start date to query stock data, in the format YYYY-MM-DD"),
+        end_date: str = Query(default='2023-06-01', description="End date to query stock data, in the format YYYY-MM-DD"),
+        limit: int = Query(default=5, description="Amount of results per page to return"),
+        page: int = Query(default=1, description="Page to read the data from")
+):
     try:
         symbol = validate_symbol(symbol)
         query = session.query(Stock).filter(
@@ -71,7 +91,11 @@ def get_stock_records(symbol: str, start_date: str, end_date: str,  limit: int =
 
 # Route to perform basic statistical analysis on the stock records
 @router.get("/statistics/")
-def get_stock_records_statistics(symbol: str, start_date: str, end_date: str):
+def get_stock_records_statistics(
+        symbol: str = Query(default='AAPL', description="Stock symbol acronym, eg `AAPL` or `IBM`"),
+        start_date: str = Query(default='2023-05-01', description="Start date to query stock data, in the format YYYY-MM-DD"),
+        end_date: str = Query(default='2023-06-01', description="End date to query stock data, in the format YYYY-MM-DD")
+                                ):
     try:
         symbol = validate_symbol(symbol)
         query = session.query(

@@ -2,7 +2,8 @@ import os
 import sys
 import requests
 import logging
-from datetime import datetime
+import pymysql
+from datetime import datetime, date, timedelta
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from model import Base, Stock
@@ -16,17 +17,18 @@ logging.basicConfig(level=logging.DEBUG,
                     )
 
 # Load AlphaVantage API key
+
 try:
     api_key = os.environ['API_KEY']
+    mysql_db = os.environ['MYSQL_DB']
 except KeyError:
-    raise EnvironmentError('Please set `API_KEY` environmental variable')
+    raise EnvironmentError('Please set `API_KEY` and `MYSQL_DB` environmental variables')
 
 
-# Define the database path
-database_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'financial_data.db')
+pymysql.install_as_MySQLdb()
 
 # Define the SQLAlchemy engine and session
-engine = create_engine(f'sqlite:///{database_path}', echo=True)
+engine = create_engine(mysql_db)
 Session = sessionmaker(bind=engine)
 session = Session()
 
@@ -53,19 +55,20 @@ for symbol in symbols:
     for date_string, values in data.items():
         try:
             date_object = datetime.strptime(date_string, date_format).date()
-            existing_record = session.query(Stock).filter_by(symbol=symbol, date=date_object).first()
-            if existing_record:
-                logging.debug(f'Found exiting record for {symbol} on {date_string}, skipping')
+            if datetime.now().date() - date_object < timedelta(days=15):
+                existing_record = session.query(Stock).filter_by(symbol=symbol, date=date_object).first()
+                if existing_record:
+                    logging.debug(f'Found exiting record for {symbol} on {date_string}, skipping')
 
-            else:
-                stock = Stock(
-                    symbol=symbol,
-                    date=datetime.strptime(date_string, date_format).date(),
-                    open_price=float(values['1. open']),
-                    close_price=float(values['4. close']),
-                    volume=float(values['6. volume'])
-                )
-                session.add(stock)
+                else:
+                    stock = Stock(
+                        symbol=symbol,
+                        date=datetime.strptime(date_string, date_format).date(),
+                        open_price=float(values['1. open']),
+                        close_price=float(values['4. close']),
+                        volume=float(values['6. volume'])
+                    )
+                    session.add(stock)
         except:
             logging.exception(f'ERROR: failed to process {values}')
 
