@@ -9,7 +9,7 @@ from fastapi import FastAPI, Query
 from fastapi_utils.inferring_router import InferringRouter
 from fastapi.openapi.utils import get_openapi
 from fastapi.openapi.docs import get_swagger_ui_html
-from validators import validate_date, validate_symbol
+from helpers import validate_date, validate_symbol, get_previous_date
 
 # Import Stock object definition
 spec = util.spec_from_file_location('model', '../model.py')
@@ -42,8 +42,8 @@ session = Session()
 @router.get("/financial_data")
 def get_stock_records(
         symbol: str = Query(default='AAPL', description="Stock symbol acronym, eg `AAPL` or `IBM`"),
-        start_date: str = Query(default='2023-05-01', description="Start date to query stock data, in the format YYYY-MM-DD"),
-        end_date: str = Query(default='2023-06-01', description="End date to query stock data, in the format YYYY-MM-DD"),
+        start_date: str = Query(default=get_previous_date(14), description="Start date to query stock data, in the format YYYY-MM-DD"),
+        end_date: str = Query(default=get_previous_date(0), description="End date to query stock data, in the format YYYY-MM-DD"),
         limit: int = Query(default=5, description="Amount of results per page to return"),
         page: int = Query(default=1, description="Page to read the data from")
 ):
@@ -89,8 +89,8 @@ def get_stock_records(
 @router.get("/statistics/")
 def get_stock_records_statistics(
         symbol: str = Query(default='AAPL', description="Stock symbol acronym, eg `AAPL` or `IBM`"),
-        start_date: str = Query(default='2023-05-01', description="Start date to query stock data, in the format YYYY-MM-DD"),
-        end_date: str = Query(default='2023-06-01', description="End date to query stock data, in the format YYYY-MM-DD")
+        start_date: str = Query(default=get_previous_date(14), description="Start date to query stock data, in the format YYYY-MM-DD"),
+        end_date: str = Query(default=get_previous_date(0), description="End date to query stock data, in the format YYYY-MM-DD")
                                 ):
     try:
         symbol = validate_symbol(symbol)

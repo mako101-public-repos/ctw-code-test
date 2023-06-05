@@ -1,4 +1,9 @@
-from datetime import datetime
+from datetime import datetime, timedelta
+
+
+def get_previous_date(days_ago: int):
+    previous_date = datetime.now().date() - timedelta(days=days_ago)
+    return previous_date.strftime("%Y-%m-%d")
 
 
 def validate_date(date_string):
