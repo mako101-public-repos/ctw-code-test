@@ -1,17 +1,15 @@
 FROM python:3.9-alpine
 
 RUN pip install --upgrade pip
-COPY requirements.txt .
-RUN pip install -r requirements.txt
+COPY requirements-docker.txt .
+RUN pip install -r requirements-docker.txt
 
 # Copy the Python script to generate data
-
 COPY financial/ /app/financial/
 COPY model.py /app/model.py
 
-## TEMP TEST
-#COPY financial_data.db /app/financial_data.db
-
+# Read MYSQL password from the environment
+ENV MYSQL_PWD=${MYSQL_PWD}
 # Expose Application port
 EXPOSE 5000
 

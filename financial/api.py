@@ -23,11 +23,12 @@ app = FastAPI()
 router = InferringRouter(prefix='/api')
 
 
-# try:
-#     mysql_db = os.environ['MYSQL_DB']
-# except KeyError:
-#     raise EnvironmentError('Please set `MYSQL_DB` environmental variable')
-mysql_db = 'mysql://root:root_password@mysql:3306/mydb'
+try:
+    mysql_pwd = os.environ['MYSQL_PWD']
+except KeyError:
+    raise EnvironmentError('Please set `MYSQL_PWD` environmental variable')
+
+mysql_db = f'mysql://root:{mysql_pwd}@mysql:3306/mydb'
 
 pymysql.install_as_MySQLdb()
 
@@ -35,11 +36,6 @@ pymysql.install_as_MySQLdb()
 engine = create_engine(mysql_db)
 Session = sessionmaker(bind=engine)
 session = Session()
-# # Create SQLite database (assuming you've already created it)
-# engine = create_engine('sqlite:///data/financial_data.db')
-# Base.metadata.bind = engine
-# Session = sessionmaker(bind=engine)
-# session = Session()
 
 
 # Route to retrieve stock records with customizable dates, limits, and pagination
