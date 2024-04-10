@@ -1,6 +1,8 @@
 # Python Assignment
 
-A simple API server to get financial data. Built with FastAPI, MySQL and Docker.
+A simple API server to download daily stocks data, store it in a local database and serve it with some basic statistics 
+
+Built with FastAPI, MySQL and Docker.
 
 
 ## Installation and Setup
